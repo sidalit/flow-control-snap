@@ -65,7 +65,6 @@ apps:
   flow-control:
     command: bin/flow
     environment:
-      # Use the bundled git helpers instead of the base snap's path.
       GIT_EXEC_PATH: $SNAP/usr/lib/git-core
     plugs:
       - home
@@ -73,8 +72,6 @@ apps:
 
 parts:
   zig:
-    # Zig toolchain required by the release (minimum_zig_version in
-    # build.zig.zon). Used for the build only, not shipped.
     plugin: nil
     build-packages:
       - curl
@@ -119,8 +116,7 @@ parts:
     build-environment:
       - ZIG_GLOBAL_CACHE_DIR: $CRAFT_PART_BUILD/.zig-global-cache
     override-build: |
-      # The build stamps `flow --version` from git and needs a branch with an
-      # upstream, which a tag checkout does not have.
+      # Version stamping requires a branch with an upstream.
       git update-ref refs/remotes/origin/master HEAD
       git checkout -q -B master --track origin/master
       case "$CRAFT_ARCH_BUILD_FOR" in
