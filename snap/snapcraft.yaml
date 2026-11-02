@@ -1,0 +1,133 @@
+name: flow-control
+base: core26
+version: '0.7.2'
+title: Flow Control
+icon: snap/gui/flow-control.png
+summary: A fast terminal text editor for programmers
+description: |
+  Flow Control is a programmer's text editor for the terminal. It has
+  tabs, palettes and full mouse support, multiple cursors, clipboard
+  history, infinite undo and smooth scrolling, and opens very large
+  files quickly. Syntax highlighting for more than 70 languages comes
+  from tree-sitter parsers built into the editor, together with its
+  themes. Keybinding modes are included for Flow (similar to VS Code),
+  Emacs, Vim and Helix; press F4 to switch between them.
+
+  The editor command is flow-control. To type flow instead, run:
+
+     sudo snap alias flow-control flow
+
+  **Examples**
+
+     flow-control ~/notes.md
+     flow-control src/main.c:120
+     flow-control README.md +40
+     flow-control --language bash ~/scripts/backup
+     flow-control --project ~/code/myapp
+     flow-control --list-languages
+
+  Press F1 for the manual, Ctrl+Shift+P or Alt+X for the command palette
+  and Ctrl+F2 for the list of keybindings. A terminal with 24-bit color,
+  a Nerd Font and a UTF-8 locale is recommended.
+
+  **File access**
+
+  Flow Control can edit files in your home directory. To also edit files
+  on USB drives and other removable media (/media, /mnt), run:
+
+     sudo snap connect flow-control:removable-media
+
+  The configuration is stored in ~/snap/flow-control/current/.config/flow.
+
+  **Strict confinement**
+
+  git and ripgrep are included, so git status, the project file list and
+  find in files work. Language servers, formatters and other programs
+  installed on your computer cannot be started from the editor, so code
+  completion, diagnostics and formatting through them are not available.
+license: MIT
+grade: stable
+confinement: strict
+website: https://flow-control.dev
+source-code:
+  - https://github.com/neurocyte/flow
+  - https://github.com/sidalit/flow-control-snap
+issues:
+  - https://github.com/neurocyte/flow/issues
+  - https://github.com/sidalit/flow-control-snap/issues
+contact: https://github.com/sidalit/flow-control-snap/issues
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  flow-control:
+    command: bin/flow
+    environment:
+      # Use the bundled git helpers instead of the base snap's path.
+      GIT_EXEC_PATH: $SNAP/usr/lib/git-core
+    plugs:
+      - home
+      - removable-media
+
+parts:
+  zig:
+    # Zig toolchain required by the release (minimum_zig_version in
+    # build.zig.zon). Used for the build only, not shipped.
+    plugin: nil
+    build-packages:
+      - curl
+      - xz-utils
+    override-pull: |
+      ZIG_VERSION=0.15.2
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        amd64)
+          ZIG_ARCH=x86_64
+          ZIG_SHA256=02aa270f183da276e5b5920b1dac44a63f1a49e55050ebde3aecc9eb82f93239
+          ;;
+        arm64)
+          ZIG_ARCH=aarch64
+          ZIG_SHA256=958ed7d1e00d0ea76590d27666efbf7a932281b3d7ba0c6b01b0ff26498f667f
+          ;;
+        *)
+          echo "unsupported architecture: $CRAFT_ARCH_BUILD_FOR" >&2
+          exit 1
+          ;;
+      esac
+      curl -fsSL -o zig.tar.xz \
+        "https://ziglang.org/download/$ZIG_VERSION/zig-$ZIG_ARCH-linux-$ZIG_VERSION.tar.xz"
+      echo "$ZIG_SHA256  zig.tar.xz" | sha256sum -c -
+      tar -xJf zig.tar.xz --strip-components=1
+      rm zig.tar.xz
+    override-build: |
+      mkdir -p "$CRAFT_PART_INSTALL/zig"
+      cp -a "$CRAFT_PART_SRC"/. "$CRAFT_PART_INSTALL/zig/"
+    prime:
+      - -*
+
+  flow:
+    after: [zig]
+    plugin: nil
+    source: https://github.com/neurocyte/flow.git
+    source-tag: v$SNAPCRAFT_PROJECT_VERSION
+    build-packages:
+      - git
+    stage-packages:
+      - git
+      - ripgrep
+    build-environment:
+      - ZIG_GLOBAL_CACHE_DIR: $CRAFT_PART_BUILD/.zig-global-cache
+    override-build: |
+      # The build stamps `flow --version` from git and needs a branch with an
+      # upstream, which a tag checkout does not have.
+      git update-ref refs/remotes/origin/master HEAD
+      git checkout -q -B master --track origin/master
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        amd64) ZIG_TARGET=x86_64-linux-musl ;;
+        arm64) ZIG_TARGET=aarch64-linux-musl ;;
+      esac
+      # Static musl binary with generic CPU support, as upstream releases.
+      "$CRAFT_STAGE/zig/zig" build -Doptimize=ReleaseSafe -Dstrip=true \
+        -Dtarget="$ZIG_TARGET" -Dcpu=baseline --prefix "$CRAFT_PART_INSTALL"
+      install -Dm644 LICENSE "$CRAFT_PART_INSTALL/share/doc/flow/LICENSE"
