@@ -72,7 +72,7 @@ sudo snap install snapcraft --classic
 snapcraft pack
 ```
 
-The build downloads a pinned Zig 0.15.2 toolchain from ziglang.org and verifies its checksum.
+Release builds use Zig 0.15.2; HEAD builds use Zig 0.17.0. Both toolchains are downloaded from ziglang.org with checksum verification.
 
 ## Support
 
