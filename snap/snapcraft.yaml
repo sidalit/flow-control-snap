@@ -122,7 +122,6 @@ parts:
     build-packages:
       - git
     stage-packages:
-      - git
       - ripgrep
     build-environment:
       - ZIG_GLOBAL_CACHE_DIR: $CRAFT_PART_BUILD/.zig-global-cache
@@ -150,3 +149,9 @@ parts:
       "$CRAFT_STAGE/zig/zig" build -Doptimize="$ZIG_OPTIMIZE" -Dstrip=true \
         -Dtarget="$ZIG_TARGET" -Dcpu=baseline --prefix "$CRAFT_PART_INSTALL"
       install -Dm644 LICENSE "$CRAFT_PART_INSTALL/share/doc/flow/LICENSE"
+
+  git:
+    plugin: nil
+    build-attributes: [enable-patchelf]
+    stage-slices:
+      - git_bins
