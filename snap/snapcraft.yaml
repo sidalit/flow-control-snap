@@ -66,6 +66,8 @@ apps:
     command: bin/flow
     environment:
       GIT_EXEC_PATH: $SNAP/usr/lib/git-core
+      XDG_CONFIG_HOME: $SNAP_USER_DATA/.config
+      XDG_STATE_HOME: $SNAP_USER_DATA/.local/state
     plugs:
       - home
       - removable-media
